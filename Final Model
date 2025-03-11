@@ -1,0 +1,83 @@
+import numpy as np
+import pandas as pd
+
+# Definir la duración total en minutos
+minutos_simulacion = 91  # De 9:00 a 10:30 AM
+
+# Definir los escenarios de permanencia
+escenarios_permanencia = {
+    "Corta Permanencia": 0.7,
+    "Media Permanencia": 0.8,
+    "Larga Permanencia": 0.9,
+    "Total Permanencia": 1.0
+}
+
+# Parámetros ajustados de rotación y traslado
+tiempos_traslado_min = 2  
+tiempos_traslado_max = 7  
+nueva_rotacion_stands = np.random.randint(3, 6)  
+nueva_rotacion_pantallas = np.random.randint(2, 4)  
+nueva_rotacion_banos = 1  
+nueva_rotacion_comida = np.random.randint(5, 10)  
+
+# Capacidad variable de las salas lounge y ponencias
+capacidad_lounge = np.random.randint(1300, 1500)  
+capacidad_ponencias = np.random.randint(900, 1200)  
+
+# Diccionario para almacenar los DataFrames por escenario
+df_ocupacion_por_escenario = {}
+libres_por_escenario = {}
+
+# Simulación de asistentes libres
+for escenario, porcentaje in escenarios_permanencia.items():
+    num_asistentes = int(6000 * porcentaje)  
+    ocupacion_minuto_a_minuto = {
+        "Ponencias": np.zeros(minutos_simulacion, dtype=int),
+        "Stands": np.zeros(minutos_simulacion, dtype=int),
+        "Pantallas": np.zeros(minutos_simulacion, dtype=int),
+        "Lounge": np.full(minutos_simulacion, capacidad_lounge, dtype=int),  
+        "Baños Hombres": np.zeros(minutos_simulacion, dtype=int),
+        "Baños Mujeres": np.zeros(minutos_simulacion, dtype=int),
+        "Comida": np.zeros(minutos_simulacion, dtype=int),  
+        "Traslado": np.zeros(minutos_simulacion, dtype=int),  
+        "Libres": np.zeros(minutos_simulacion, dtype=int),
+        "Total Asistentes": np.full(minutos_simulacion, num_asistentes, dtype=int)  
+    }
+
+    for minuto in range(minutos_simulacion):
+        total_asignados = capacidad_lounge 
+
+        
+        if 10 <= minuto < 30 or 40 <= minuto < 60:
+            ocupacion_minuto_a_minuto["Ponencias"][minuto] = capacidad_ponencias
+        else:
+            ocupacion_minuto_a_minuto["Ponencias"][minuto] = 0
+
+        ocupacion_minuto_a_minuto["Stands"][minuto] = np.random.randint(300, 347) if minuto % nueva_rotacion_stands == 0 else 0
+        ocupacion_minuto_a_minuto["Pantallas"][minuto] = np.random.randint(5, 11) if minuto % nueva_rotacion_pantallas == 0 else 0
+        ocupacion_minuto_a_minuto["Baños Hombres"][minuto] = np.random.randint(1, 40) if minuto % nueva_rotacion_banos == 0 else 0
+        ocupacion_minuto_a_minuto["Baños Mujeres"][minuto] = np.random.randint(1, 40) if minuto % nueva_rotacion_banos == 0 else 0
+        ocupacion_minuto_a_minuto["Comida"][minuto] = np.random.randint(300, 400) if minuto % nueva_rotacion_comida == 0 else 0
+        ocupacion_minuto_a_minuto["Traslado"][minuto] = np.random.randint(100, 300)
+
+       
+        total_asignados += sum([ocupacion_minuto_a_minuto[act][minuto] for act in ocupacion_minuto_a_minuto if act not in ["Libres", "Total Asistentes"]])
+        ocupacion_minuto_a_minuto["Libres"][minuto] = max(0, num_asistentes - total_asignados)
+        ocupacion_minuto_a_minuto["Total Asistentes"][minuto] = total_asignados + ocupacion_minuto_a_minuto["Libres"][minuto]
+
+   
+    df_ocupacion = pd.DataFrame(ocupacion_minuto_a_minuto)
+    df_ocupacion.index = [f"{9 + (m // 60)}:{m % 60:02d}" for m in range(minutos_simulacion)]  
+    df_ocupacion.index.name = "Hora"
+
+    
+    df_ocupacion_por_escenario[escenario] = df_ocupacion
+
+# Mostrar promedio de asistentes libres por escenario
+print("\nPromedio de asistentes libres por escenario :")
+for escenario, df in df_ocupacion_por_escenario.items():
+    libres_promedio = int(df["Libres"].mean())
+    libres_std = int(df["Libres"].std())
+    libres_por_escenario[escenario] = (libres_promedio, libres_std)
+    print(f"{escenario}: {libres_promedio} asistentes libres en promedio")
+
